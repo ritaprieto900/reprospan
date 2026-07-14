@@ -294,6 +294,116 @@
     padding: 0.35rem 0.75rem;
     cursor: pointer;
   }
+
+  .diff-upload {
+    display: flex;
+    gap: var(--gap);
+    padding: var(--gap) calc(var(--gap) * 2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .diff-upload label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: calc(var(--gap) * 1.5);
+    border: 2px dashed var(--border);
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.8em;
+    transition: border-color 0.12s ease, color 0.12s ease;
+  }
+
+  .diff-upload label:hover { border-color: var(--accent); color: var(--accent); }
+  .diff-upload label.loaded { border-color: var(--ok); border-style: solid; }
+  .diff-upload input[type=file] { display: none; }
+
+  .diff-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: calc(var(--gap) * 2);
+  }
+
+  .diff-view h2 { font-size: inherit; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: var(--gap); }
+
+  .diff-card {
+    border: 1px solid var(--border);
+    margin-bottom: var(--gap);
+    padding: var(--gap);
+  }
+
+  .diff-card .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .diff-card .event-kind { color: var(--accent); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .diff-card .tag {
+    display: inline-block;
+    padding: 0.1em 0.4em;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .diff-card .tag.changed { background: rgba(232,168,56,0.15); color: var(--accent); }
+
+  .diff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .diff-grid .col-header {
+    background: var(--surface);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  .diff-grid .cell {
+    background: var(--bg);
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .diff-grid .cell.old { background: rgba(201,74,74,0.06); color: var(--error); }
+  .diff-grid .cell.new { background: rgba(74,158,110,0.06); color: var(--ok); }
+
+  .meta-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    margin-bottom: var(--gap);
+  }
+
+  .meta-compare .col-header {
+    background: var(--surface);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  .meta-compare .cell {
+    background: var(--bg);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8em;
+    word-break: break-all;
+  }
 </style>
 </head>
 <body>
@@ -310,7 +420,11 @@
     <div class="bundle-list" id="bundle-list"></div>
   </aside>
   <section class="panel" id="panel">
-    <div class="placeholder">Select a bundle to inspect</div>
+    <div class="tab-bar" id="tab-bar" style="display:none">
+      <button class="active" data-tab="timeline">Timeline</button>
+      <button data-tab="diff">Diff</button>
+    </div>
+    <div id="panel-body" class="placeholder">Select a bundle to inspect</div>
   </section>
 </main>
 <script type="module">
@@ -319,10 +433,14 @@ const connectBtn = document.getElementById("connect-btn");
 const healthDot = document.getElementById("health-dot");
 const healthText = document.getElementById("health-text");
 const bundleList = document.getElementById("bundle-list");
-const panel = document.getElementById("panel");
+const panelBody = document.getElementById("panel-body");
+const tabBar = document.getElementById("tab-bar");
 
 let base = "";
 let bundles = [];
+let activeBundle = null;
+let beforeBundle = null;
+let afterBundle = null;
 
 async function health() {
   try {
@@ -356,17 +474,29 @@ serverInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(
 connectBtn.addEventListener("click", connect);
 
 async function loadBundle(bundleId) {
-  const t = await fetchJson(`/v1/bundles/${encodeURIComponent(bundleId)}/timeline`);
-  renderTimeline(t);
+  activeBundle = await fetchJson(`/v1/bundles/${encodeURIComponent(bundleId)}/timeline`);
+  tabBar.style.display = "flex";
+  switchTab("timeline");
 }
 
-function renderTimeline(bundle) {
-  const kinds = bundle.events.map((e) => e.kind);
+function switchTab(tab) {
+  tabBar.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  if (tab === "timeline") renderTimeline();
+  else renderDiff();
+}
+
+tabBar.querySelectorAll("button").forEach(b => {
+  b.addEventListener("click", () => switchTab(b.dataset.tab));
+});
+
+function renderTimeline() {
+  const bundle = activeBundle;
+  if (!bundle) { panelBody.innerHTML = '<div class="placeholder">No bundle loaded</div>'; return; }
   const last = bundle.events[bundle.events.length - 1];
   const verdict = last.kind === "run.failed" ? "failed" : "completed";
 
   let html = `<div class="timeline-view">`;
-  html += `<h2>Bundle ${bundle.bundle_id}</h2>`;
+  html += `<h2>Bundle ${escapeHtml(bundle.bundle_id)}</h2>`;
   html += `<div class="stat-row">
     <div><div class="stat-label">Created</div><div class="stat-value">${bundle.created_at}</div></div>
     <div><div class="stat-label">Events</div><div class="stat-value">${bundle.events.length}</div></div>
@@ -379,8 +509,7 @@ function renderTimeline(bundle) {
     html += `<span class="event-kind">${event.kind}</span><span class="event-id">${event.event_id}</span>`;
     if (event.name) html += `<span class="event-name">${event.name}</span>`;
     if (event.output) {
-      const outputJson = JSON.stringify(event.output, null, 2);
-      html += `<div class="event-output">${escapeHtml(outputJson)}</div>`;
+      html += `<div class="event-output">${escapeHtml(JSON.stringify(event.output, null, 2))}</div>`;
     }
     if (event.parent_event_id) {
       html += `<div class="event-parent">← parent: ${event.parent_event_id}</div>`;
@@ -388,7 +517,109 @@ function renderTimeline(bundle) {
     html += `</div>`;
   }
   html += `</div>`;
-  panel.innerHTML = html;
+  panelBody.className = "";
+  panelBody.innerHTML = html;
+}
+
+function renderDiff() {
+  if (!beforeBundle || !afterBundle) {
+    panelBody.className = "";
+    panelBody.innerHTML = `<div class="diff-view"><div class="diff-upload">
+      <label id="drop-before" class="${beforeBundle?'loaded':''}">
+        <span>${beforeBundle?'✓ Loaded':'Drop before.json'}</span>
+        <span style="font-size:0.7em;color:var(--faint)">${beforeBundle ? beforeBundle.bundle_id : 'or click to select file'}</span>
+        <input type="file" accept=".json" id="file-before">
+      </label>
+      <label id="drop-after" class="${afterBundle?'loaded':''}">
+        <span>${afterBundle?'✓ Loaded':'Drop after.json'}</span>
+        <span style="font-size:0.7em;color:var(--faint)">${afterBundle ? afterBundle.bundle_id : 'or click to select file'}</span>
+        <input type="file" accept=".json" id="file-after">
+      </label>
+    </div></div>`;
+    setupUploads();
+    return;
+  }
+
+  const before = beforeBundle, after = afterBundle;
+  const changed = [];
+  let unchanged = 0;
+
+  for (let i = 0; i < Math.min(before.events.length, after.events.length); i++) {
+    const be = before.events[i], ae = after.events[i];
+    if (be.event_id !== ae.event_id || be.kind !== ae.kind) {
+      changed.push({ event_id: be.event_id, kind: be.kind, identity: true, be, ae });
+      continue;
+    }
+    const diffs = [];
+    if (be.status !== ae.status) diffs.push({ field: "status", before: be.status, after: ae.status });
+    const bo = JSON.stringify(be.output || null), ao = JSON.stringify(ae.output || null);
+    if (bo !== ao) diffs.push({ field: "output", before: bo === "null" ? "—" : JSON.stringify(be.output, null, 2), after: ao === "null" ? "—" : JSON.stringify(ae.output, null, 2) });
+    if (diffs.length) changed.push({ event_id: be.event_id, kind: be.kind, diffs, be, ae });
+    else unchanged++;
+  }
+
+  let html = `<div class="diff-view">`;
+  html += `<h2>Diff: ${escapeHtml(before.bundle_id)}</h2>`;
+  html += `<div class="stat-row">
+    <div><div class="stat-label">Changed</div><div class="stat-value" style="color:var(--accent)">${changed.length} events</div></div>
+    <div><div class="stat-label">Unchanged</div><div class="stat-value">${unchanged} events</div></div>
+  </div>`;
+
+  for (const c of changed) {
+    html += `<div class="diff-card">`;
+    html += `<div class="header"><span class="event-kind">${c.kind}</span><span class="event-id">${c.event_id}</span><span class="tag changed">changed</span></div>`;
+    if (c.identity) {
+      html += `<div style="color:var(--error);font-size:0.85em">Event identity differs — cannot compare fields</div>`;
+    } else {
+      html += `<div class="diff-grid">`;
+      html += `<div class="col-header">Before</div><div class="col-header">After</div>`;
+      for (const d of c.diffs) {
+        html += `<div class="cell old">${escapeHtml(String(d.before))}</div>`;
+        html += `<div class="cell new">${escapeHtml(String(d.after))}</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+  panelBody.className = "";
+  panelBody.innerHTML = html;
+}
+
+function setupUploads() {
+  const dropBefore = document.getElementById("drop-before");
+  const dropAfter = document.getElementById("drop-after");
+  const fileBefore = document.getElementById("file-before");
+  const fileAfter = document.getElementById("file-after");
+  if (!dropBefore || !fileBefore) return;
+
+  function handleDrop(el, fileInput, setter) {
+    el.addEventListener("dragover", e => { e.preventDefault(); });
+    el.addEventListener("drop", e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { setter(JSON.parse(reader.result)); renderDiff(); }
+        catch (err) { alert("Invalid JSON: " + err.message); }
+      };
+      reader.readAsText(file);
+    });
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { setter(JSON.parse(reader.result)); renderDiff(); }
+        catch (err) { alert("Invalid JSON: " + err.message); }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  handleDrop(dropBefore, fileBefore, (b) => { beforeBundle = b; });
+  handleDrop(dropAfter, fileAfter, (b) => { afterBundle = b; });
 }
 
 function escapeHtml(str) {

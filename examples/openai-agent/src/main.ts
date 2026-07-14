@@ -4,9 +4,13 @@ import { runOpenAIAgent } from "./agent.js";
 import { lookupPolicy } from "./local-tool.js";
 
 const baseUrl = process.argv[2];
+const apiKey = process.argv[3] || process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  console.error("OPENAI_API_KEY env var or second argument required");
+  process.exit(1);
+}
 const client = new LoopbackClient(baseUrl === undefined ? {} : { baseUrl });
-
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey });
 
 const bundle = await runOpenAIAgent(
   baseUrl ?? "http://127.0.0.1:8787",
