@@ -101,10 +101,7 @@ struct DemoSummary {
 
 /// Imports a JSON bundle record into a store, validating and returning whether
 /// it was newly imported or a conflict.
-fn import_bundle(
-    store: &mut Store,
-    source: &str,
-) -> Result<bool, CliError> {
+fn import_bundle(store: &mut Store, source: &str) -> Result<bool, CliError> {
     let bundle: Bundle = serde_json::from_str(source)?;
     bundle.validate()?;
     match store.import_bundle(&bundle) {

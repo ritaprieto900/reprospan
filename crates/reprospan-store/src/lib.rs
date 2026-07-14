@@ -371,10 +371,12 @@ mod tests {
             store.artifact_bytes(sha256).expect("should exist"),
             Some(bytes.to_vec()),
         );
-        assert!(store
-            .artifact_bytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-            .expect("query should succeed")
-            .is_none());
+        assert!(
+            store
+                .artifact_bytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+                .expect("query should succeed")
+                .is_none()
+        );
 
         // Re-upload is idempotent.
         store
