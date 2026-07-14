@@ -15,6 +15,7 @@ use axum::{
 use reprospan_core::Bundle;
 use reprospan_store::{Store, StoreError};
 use serde::Serialize;
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 struct AppState {
@@ -40,6 +41,7 @@ pub fn router(store: Store) -> Router {
         .route("/v1/bundles/ingest", post(ingest))
         .route("/v1/bundles/{bundle_id}/timeline", get(timeline))
         .route("/v1/artifacts/{sha256}", put(put_artifact))
+        .layer(CorsLayer::permissive())
         .with_state(AppState {
             store: Arc::new(Mutex::new(store)),
         })

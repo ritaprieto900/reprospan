@@ -12,6 +12,7 @@ reprospan-store.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tower-http = { version = "0.6", features = ["cors"] }
 
 [dev-dependencies]
 serde_json.workspace = true
