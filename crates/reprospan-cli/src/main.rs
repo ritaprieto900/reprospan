@@ -76,6 +76,16 @@ enum Command {
         #[arg(long, default_value = "127.0.0.1:8787")]
         listen: SocketAddr,
     },
+    Replay {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        bundle: PathBuf,
+        #[arg(long)]
+        patch: Option<PathBuf>,
+        #[arg(long)]
+        eval: Option<PathBuf>,
+    },
 }
 
 #[derive(Serialize)]
@@ -89,6 +99,64 @@ struct DemoSummary {
     eval_passed: bool,
 }
 
+/// Imports a JSON bundle record into a store, validating and returning whether
+/// it was newly imported or a conflict.
+fn import_bundle(
+    store: &mut Store,
+    source: &str,
+) -> Result<bool, CliError> {
+    let bundle: Bundle = serde_json::from_str(source)?;
+    bundle.validate()?;
+    match store.import_bundle(&bundle) {
+        Ok(()) => Ok(true),
+        Err(StoreError::Conflict(_)) => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Runs the offline replay pipeline: import → export → optional patch →
+/// optional diff → optional eval.
+fn replay(
+    store: &mut Store,
+    source: &str,
+    patch_path: Option<PathBuf>,
+    eval_path: Option<PathBuf>,
+) -> Result<(), CliError> {
+    let bundle: Bundle = serde_json::from_str(source)?;
+    let imported = import_bundle(store, source)?;
+    let exported = store.export_bundle(&bundle.bundle_id)?;
+
+    let (patched, diff, evaluation) = if let Some(patch_file) = patch_path {
+        let p: Patch = read_json(patch_file)?;
+        let patched = exported.apply_patch(&p)?;
+        let diff = exported.semantic_diff(&patched)?;
+        let eval_result = if let Some(eval_file) = eval_path {
+            Some(patched.evaluate(&read_json(eval_file)?)?)
+        } else {
+            None
+        };
+        (Some(patched), Some(diff), eval_result)
+    } else {
+        (None, None, None)
+    };
+
+    let summary = serde_json::json!({
+        "bundle_id": bundle.bundle_id,
+        "imported": imported,
+        "event_count": exported.events.len(),
+        "patch_applied": patched.is_some(),
+        "changed_event_count": diff.as_ref().map_or(0, |d| d.changed_events.len()),
+        "eval_passed": evaluation.as_ref().is_none_or(|r| r.passed),
+    });
+    println!("{}", serde_json::to_string_pretty(&summary)?);
+    if let Some(eval_result) = evaluation {
+        if !eval_result.passed {
+            return Err(CliError::EvaluationFailed);
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(error) = run().await {
@@ -97,13 +165,14 @@ async fn main() {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn run() -> Result<(), CliError> {
     match Cli::parse().command {
         Command::Import { db, bundle } => {
             let source = std::fs::read_to_string(bundle)?;
-            let bundle: Bundle = serde_json::from_str(&source)?;
             let mut store = Store::open_and_migrate(db)?;
-            store.import_bundle(&bundle)?;
+            import_bundle(&mut store, &source)?;
+            let bundle: Bundle = serde_json::from_str(&source)?;
             println!("{}", serde_json::to_string_pretty(&bundle)?);
         }
         Command::Timeline { db, bundle_id } => {
@@ -138,24 +207,22 @@ async fn run() -> Result<(), CliError> {
             }
         }
         Command::Demo { db } => {
+            let mut store = Store::open_and_migrate(db)?;
+            replay(
+                &mut store,
+                BUNDLE_FIXTURE,
+                Some(PathBuf::from("<patch>")),
+                Some(PathBuf::from("<eval>")),
+            )?;
             let bundle: Bundle = serde_json::from_str(BUNDLE_FIXTURE)?;
             let patch: Patch = serde_json::from_str(PATCH_FIXTURE)?;
             let evaluation: Evaluation = serde_json::from_str(EVAL_FIXTURE)?;
-            bundle.validate()?;
-
-            let mut store = Store::open_and_migrate(db)?;
-            let imported = match store.import_bundle(&bundle) {
-                Ok(()) => true,
-                Err(StoreError::Conflict(_)) => false,
-                Err(error) => return Err(error.into()),
-            };
-            let recorded = store.export_bundle(&bundle.bundle_id)?;
-            let patched = recorded.apply_patch(&patch)?;
-            let diff = recorded.semantic_diff(&patched)?;
+            let patched = bundle.apply_patch(&patch)?;
+            let diff = bundle.semantic_diff(&patched)?;
             let result = patched.evaluate(&evaluation)?;
             let summary = DemoSummary {
                 bundle_id: bundle.bundle_id,
-                imported,
+                imported: false,
                 exported: true,
                 patch_id: patch.patch_id,
                 changed_event_count: diff.changed_events.len(),
@@ -168,6 +235,16 @@ async fn run() -> Result<(), CliError> {
             }
         }
         Command::Serve { db, listen } => reprospan_server::serve(db, listen).await?,
+        Command::Replay {
+            db,
+            bundle,
+            patch,
+            eval,
+        } => {
+            let source = std::fs::read_to_string(bundle)?;
+            let mut store = Store::open_and_migrate(db)?;
+            replay(&mut store, &source, patch, eval)?;
+        }
     }
     Ok(())
 }

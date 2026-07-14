@@ -57,6 +57,23 @@ export class LoopbackClient {
     return result;
   }
 
+  async storeArtifact(sha256: string, mediaType: string, bytes: Uint8Array): Promise<void> {
+    const response = await this.#fetch(
+      new URL(`/v1/artifacts/${encodeURIComponent(sha256)}`, this.#baseUrl),
+      { method: "PUT", headers: { "content-type": mediaType }, body: bytes },
+    );
+    if (!response.ok) {
+      let code = "http_error";
+      let message = response.statusText;
+      try {
+        const body = await response.json();
+        if (typeof body?.code === "string") code = body.code;
+        if (typeof body?.message === "string") message = body.message;
+      } catch { /* keep defaults */ }
+      throw new ReprospanHttpError(response.status, code, message.slice(0, 512));
+    }
+  }
+
   async #request<T>(pathname: string, init?: RequestInit): Promise<T> {
     const response = await this.#fetch(new URL(pathname, this.#baseUrl), init);
     const body: unknown = await response.json().catch(() => undefined);

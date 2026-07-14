@@ -60,6 +60,13 @@ impl Store {
                 UNIQUE (bundle_id, sequence),
                 FOREIGN KEY (bundle_id) REFERENCES bundles(bundle_id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS artifacts (
+                sha256 TEXT PRIMARY KEY,
+                media_type TEXT NOT NULL,
+                byte_length INTEGER NOT NULL,
+                bytes BLOB NOT NULL,
+                uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             ",
         )?;
         let has_canonical_bundle = {
@@ -190,6 +197,43 @@ impl Store {
         bundle.validate()?;
         Ok(bundle)
     }
+
+    /// Stores raw artifact bytes keyed by their `sha256` digest.
+    ///
+    /// Re-uploading the same digest is a no-op.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`StoreError`] if the underlying database operation fails.
+    pub fn store_artifact(
+        &self,
+        sha256: &str,
+        media_type: &str,
+        bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        let byte_length: i64 = bytes.len().try_into().unwrap_or(i64::MAX);
+        self.connection.execute(
+            "INSERT OR IGNORE INTO artifacts (sha256, media_type, byte_length, bytes) VALUES (?1, ?2, ?3, ?4)",
+            params![sha256, media_type, byte_length, bytes],
+        )?;
+        Ok(())
+    }
+
+    /// Reads artifact bytes for a given `sha256` digest, if stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`StoreError`] if the underlying database operation fails.
+    pub fn artifact_bytes(&self, sha256: &str) -> Result<Option<Vec<u8>>, StoreError> {
+        self.connection
+            .query_row(
+                "SELECT bytes FROM artifacts WHERE sha256 = ?1",
+                [sha256],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional()
+            .map_err(StoreError::from)
+    }
 }
 
 #[cfg(test)]
@@ -310,5 +354,31 @@ mod tests {
             store.timeline("missing"),
             Err(StoreError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn stores_and_retrieves_artifact_bytes() {
+        let directory = tempfile::tempdir().expect("temp directory should be created");
+        let store = Store::open_and_migrate(directory.path().join("store.sqlite"))
+            .expect("store should open");
+
+        let sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let bytes = b"hello artifact";
+        store
+            .store_artifact(sha256, "text/plain", bytes)
+            .expect("store should succeed");
+        assert_eq!(
+            store.artifact_bytes(sha256).expect("should exist"),
+            Some(bytes.to_vec()),
+        );
+        assert!(store
+            .artifact_bytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+            .expect("query should succeed")
+            .is_none());
+
+        // Re-upload is idempotent.
+        store
+            .store_artifact(sha256, "text/plain", bytes)
+            .expect("re-store should succeed");
     }
 }

@@ -1,0 +1,20 @@
+{
+  "name": "@reprospan/adapter-openai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@reprospan/sdk": "workspace:*",
+    "openai": "^4.90.0"
+  }
+}

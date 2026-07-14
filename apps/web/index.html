@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reprospan Timeline</title>
+<style>
+  :root {
+    --bg: #1a1a1c;
+    --surface: #212124;
+    --border: #2d2d31;
+    --text: #dddddf;
+    --muted: #8e8e92;
+    --faint: #5e5e62;
+    --accent: #e8a838;
+    --error: #c94a4a;
+    --ok: #4a9e6e;
+    --pending: #5e6e8e;
+    --gap: 1rem;
+    --radius: 0px;
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--gap) calc(var(--gap) * 2);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-size: inherit;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  header .status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  header .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+
+  header .dot.disconnected { background: var(--error); }
+
+  main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  aside {
+    width: 340px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bundle-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .bundle-item {
+    padding: var(--gap) calc(var(--gap) * 1.5);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+
+  .bundle-item:hover { background: rgba(255,255,255,0.03); }
+  .bundle-item.active { background: rgba(232,168,56,0.08); }
+
+  .bundle-item .id {
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  .bundle-item .meta {
+    color: var(--muted);
+    font-size: 0.85em;
+    margin-top: 0.25rem;
+  }
+
+  .bundle-item .badge {
+    display: inline-block;
+    padding: 0.12em 0.5em;
+    background: var(--border);
+    font-size: 0.8em;
+    margin-top: 0.35rem;
+  }
+
+  .bundle-item .badge.failed { background: rgba(201,74,74,0.18); color: var(--error); }
+  .bundle-item .badge.completed { background: rgba(74,158,110,0.18); color: var(--ok); }
+
+  .panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+    font-size: 0.9em;
+    letter-spacing: 0.03em;
+  }
+
+  .timeline-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: calc(var(--gap) * 2);
+  }
+
+  .timeline-view h2 {
+    font-size: inherit;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: var(--gap);
+  }
+
+  .event-row {
+    position: relative;
+    padding: 0.75rem 0 0.75rem 2rem;
+    border-left: 1px solid var(--border);
+  }
+
+  .event-row:last-child { border-left-color: transparent; }
+
+  .event-row::before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    top: 0.9rem;
+    width: 8px;
+    height: 8px;
+    background: var(--pending);
+  }
+
+  .event-row.status-ok::before { background: var(--ok); }
+  .event-row.status-error::before { background: var(--error); }
+
+  .event-kind {
+    color: var(--accent);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .event-id {
+    color: var(--muted);
+    margin-left: 0.5rem;
+  }
+
+  .event-name {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--text);
+  }
+
+  .event-output {
+    margin-top: 0.35rem;
+    padding: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-size: 0.9em;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .event-parent {
+    font-size: 0.8em;
+    color: var(--faint);
+    margin-top: 0.25rem;
+  }
+
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: calc(var(--gap) * 1.5);
+    font-size: 0.9em;
+  }
+
+  .diff-table th {
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    font-size: 0.85em;
+    letter-spacing: 0.04em;
+  }
+
+  .diff-table td {
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+  }
+
+  .diff-table .field { color: var(--muted); }
+  .diff-table .before { color: var(--error); text-decoration: line-through; }
+  .diff-table .after { color: var(--ok); }
+
+  .stat-row {
+    display: flex;
+    gap: calc(var(--gap) * 3);
+    margin-bottom: var(--gap);
+  }
+
+  .stat-label { color: var(--muted); font-size: 0.8em; }
+  .stat-value { color: var(--text); }
+
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-bar button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.85em;
+    padding: 0.5rem calc(var(--gap) * 1.5);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.12s ease, border-color 0.12s ease;
+  }
+
+  .tab-bar button:hover { color: var(--text); }
+  .tab-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .connect-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: var(--gap);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .connect-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85em;
+    padding: 0.35rem 0.5rem;
+    outline: none;
+  }
+
+  .connect-row input:focus { border-color: var(--accent); }
+
+  .connect-row button {
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    font: inherit;
+    font-size: 0.85em;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reprospan ・ Timeline</h1>
+  <span class="status"><span class="dot" id="health-dot"></span><span id="health-text">—</span></span>
+</header>
+<main>
+  <aside>
+    <div class="connect-row">
+      <input id="server-url" type="text" value="http://127.0.0.1:8787" placeholder="http://127.0.0.1:8787">
+      <button id="connect-btn">Connect</button>
+    </div>
+    <div class="bundle-list" id="bundle-list"></div>
+  </aside>
+  <section class="panel" id="panel">
+    <div class="placeholder">Select a bundle to inspect</div>
+  </section>
+</main>
+<script type="module">
+const serverInput = document.getElementById("server-url");
+const connectBtn = document.getElementById("connect-btn");
+const healthDot = document.getElementById("health-dot");
+const healthText = document.getElementById("health-text");
+const bundleList = document.getElementById("bundle-list");
+const panel = document.getElementById("panel");
+
+let base = "";
+let bundles = [];
+
+async function health() {
+  try {
+    const r = await fetch(`${base}/healthz`);
+    if (r.ok) { const j = await r.json(); return j; }
+  } catch (_) {}
+  return null;
+}
+
+async function fetchJson(path) {
+  const r = await fetch(`${base}${path}`);
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+}
+
+async function connect() {
+  base = serverInput.value.trim().replace(/\/$/, "");
+  healthDot.className = "dot";
+  healthText.textContent = "connecting…";
+  const h = await health();
+  if (h) {
+    healthDot.className = "dot";
+    healthText.textContent = `${h.api_version} / ${h.contract_version}`;
+  } else {
+    healthDot.className = "dot disconnected";
+    healthText.textContent = "unreachable";
+  }
+}
+
+serverInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+connectBtn.addEventListener("click", connect);
+
+async function loadBundle(bundleId) {
+  const t = await fetchJson(`/v1/bundles/${encodeURIComponent(bundleId)}/timeline`);
+  renderTimeline(t);
+}
+
+function renderTimeline(bundle) {
+  const kinds = bundle.events.map((e) => e.kind);
+  const last = bundle.events[bundle.events.length - 1];
+  const verdict = last.kind === "run.failed" ? "failed" : "completed";
+
+  let html = `<div class="timeline-view">`;
+  html += `<h2>Bundle ${bundle.bundle_id}</h2>`;
+  html += `<div class="stat-row">
+    <div><div class="stat-label">Created</div><div class="stat-value">${bundle.created_at}</div></div>
+    <div><div class="stat-label">Events</div><div class="stat-value">${bundle.events.length}</div></div>
+    <div><div class="stat-label">Verdict</div><div class="stat-value" style="color:${verdict==='failed'?'var(--error)':'var(--ok)'}">${verdict}</div></div>
+    <div><div class="stat-label">Policy</div><div class="stat-value">${bundle.capture_policy.mode} · redacted=${bundle.capture_policy.redacted}</div></div>
+  </div>`;
+
+  for (const event of bundle.events) {
+    html += `<div class="event-row status-${event.status}">`;
+    html += `<span class="event-kind">${event.kind}</span><span class="event-id">${event.event_id}</span>`;
+    if (event.name) html += `<span class="event-name">${event.name}</span>`;
+    if (event.output) {
+      const outputJson = JSON.stringify(event.output, null, 2);
+      html += `<div class="event-output">${escapeHtml(outputJson)}</div>`;
+    }
+    if (event.parent_event_id) {
+      html += `<div class="event-parent">← parent: ${event.parent_event_id}</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+connect();
+</script>
+</body>
+</html>

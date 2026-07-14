@@ -6,10 +6,11 @@ use std::{
 
 use axum::{
     Json, Router,
+    body::Bytes,
     extract::{Path as AxumPath, State, rejection::JsonRejection},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use reprospan_core::Bundle;
 use reprospan_store::{Store, StoreError};
@@ -38,6 +39,7 @@ pub fn router(store: Store) -> Router {
         .route("/healthz", get(health))
         .route("/v1/bundles/ingest", post(ingest))
         .route("/v1/bundles/{bundle_id}/timeline", get(timeline))
+        .route("/v1/artifacts/{sha256}", put(put_artifact))
         .with_state(AppState {
             store: Arc::new(Mutex::new(store)),
         })
@@ -139,6 +141,32 @@ async fn timeline(
             StatusCode::INTERNAL_SERVER_ERROR,
             "internal_error",
             "internal storage error",
+        ),
+    }
+}
+
+async fn put_artifact(
+    State(state): State<AppState>,
+    AxumPath(sha256): AxumPath<String>,
+    headers: axum::http::HeaderMap,
+    body: Bytes,
+) -> Response {
+    let media_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("application/octet-stream");
+
+    let result = {
+        let store = state.store.lock().unwrap();
+        store.store_artifact(&sha256, media_type, &body)
+    };
+
+    match result {
+        Ok(()) => StatusCode::CREATED.into_response(),
+        Err(store_error) => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal_error",
+            store_error.to_string(),
         ),
     }
 }
