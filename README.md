@@ -4,6 +4,8 @@
 
 **回放一次失败的 Agent 运行，修改一步，证明修好了。**
 
+[![CI](https://github.com/ritaprieto900/reprospan/actions/workflows/ci.yml/badge.svg)](https://github.com/ritaprieto900/reprospan/actions/workflows/ci.yml)
+
 Reprospan is a local-first debugger for tool-using AI agents. It turns a failed run into a redacted, portable reproduction bundle that can be replayed offline, patched at one step, compared semantically, and promoted into a CI regression test.
 
 Reprospan 是一个本地优先的 AI Agent 调试工具。它把一次失败的运行冻结成脱敏、可移植的回放包，离线重放、修改一步、语义对比，然后推进 CI 做回归测试。
