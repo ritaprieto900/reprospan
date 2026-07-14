@@ -33,6 +33,12 @@ importers:
         specifier: ^4.90.0
         version: 4.90.0
 
+  packages/adapters/anthropic:
+    dependencies:
+      '@reprospan/sdk':
+        specifier: workspace:*
+        version: link:../../sdk
+
   packages/adapters/openai:
     dependencies:
       '@reprospan/sdk':
