@@ -72,9 +72,7 @@ async fn health() -> Json<Health> {
     })
 }
 
-async fn list_bundles(
-    State(state): State<AppState>,
-) -> Response {
+async fn list_bundles(State(state): State<AppState>) -> Response {
     let result = {
         let store = state.store.lock().unwrap();
         store.list_bundles()
