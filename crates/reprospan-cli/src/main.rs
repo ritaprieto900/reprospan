@@ -207,22 +207,24 @@ async fn run() -> Result<(), CliError> {
             }
         }
         Command::Demo { db } => {
-            let mut store = Store::open_and_migrate(db)?;
-            replay(
-                &mut store,
-                BUNDLE_FIXTURE,
-                Some(PathBuf::from("<patch>")),
-                Some(PathBuf::from("<eval>")),
-            )?;
             let bundle: Bundle = serde_json::from_str(BUNDLE_FIXTURE)?;
             let patch: Patch = serde_json::from_str(PATCH_FIXTURE)?;
             let evaluation: Evaluation = serde_json::from_str(EVAL_FIXTURE)?;
-            let patched = bundle.apply_patch(&patch)?;
-            let diff = bundle.semantic_diff(&patched)?;
+            bundle.validate()?;
+
+            let mut store = Store::open_and_migrate(db)?;
+            let imported = match store.import_bundle(&bundle) {
+                Ok(()) => true,
+                Err(StoreError::Conflict(_)) => false,
+                Err(error) => return Err(error.into()),
+            };
+            let recorded = store.export_bundle(&bundle.bundle_id)?;
+            let patched = recorded.apply_patch(&patch)?;
+            let diff = recorded.semantic_diff(&patched)?;
             let result = patched.evaluate(&evaluation)?;
             let summary = DemoSummary {
                 bundle_id: bundle.bundle_id,
-                imported: false,
+                imported,
                 exported: true,
                 patch_id: patch.patch_id,
                 changed_event_count: diff.changed_events.len(),
