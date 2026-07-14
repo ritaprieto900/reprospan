@@ -2,10 +2,20 @@ use std::path::Path;
 
 use reprospan_core::Bundle;
 use rusqlite::{Connection, OptionalExtension, params};
+use serde::Serialize;
 use thiserror::Error;
 
 pub struct Store {
     connection: Connection,
+}
+
+/// Lightweight bundle metadata for list endpoints.
+#[derive(Debug, Serialize)]
+pub struct BundleListItem {
+    pub bundle_id: String,
+    pub schema_version: String,
+    pub created_at: String,
+    pub imported_at: String,
 }
 
 #[derive(Debug, Error)]
@@ -196,6 +206,26 @@ impl Store {
         };
         bundle.validate()?;
         Ok(bundle)
+    }
+
+    /// Returns basic metadata for every imported bundle, newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`StoreError`] if the underlying query fails.
+    pub fn list_bundles(&self) -> Result<Vec<BundleListItem>, StoreError> {
+        let mut statement = self.connection.prepare(
+            "SELECT bundle_id, schema_version, created_at, imported_at FROM bundles ORDER BY imported_at DESC",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(BundleListItem {
+                bundle_id: row.get(0)?,
+                schema_version: row.get(1)?,
+                created_at: row.get(2)?,
+                imported_at: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(StoreError::from)
     }
 
     /// Stores raw artifact bytes keyed by their `sha256` digest.

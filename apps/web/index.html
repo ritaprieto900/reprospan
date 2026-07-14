@@ -420,7 +420,7 @@
     <div class="bundle-list" id="bundle-list"></div>
   </aside>
   <section class="panel" id="panel">
-    <div class="tab-bar" id="tab-bar" style="display:none">
+    <div class="tab-bar" id="tab-bar">
       <button class="active" data-tab="timeline">Timeline</button>
       <button data-tab="diff">Diff</button>
     </div>
@@ -464,25 +464,53 @@ async function connect() {
   if (h) {
     healthDot.className = "dot";
     healthText.textContent = `${h.api_version} / ${h.contract_version}`;
+    await refreshBundles();
   } else {
     healthDot.className = "dot disconnected";
     healthText.textContent = "unreachable";
   }
 }
 
+async function refreshBundles() {
+  try {
+    const r = await fetch(`${base}/v1/bundles`);
+    if (!r.ok) return;
+    bundles = await r.json();
+    renderBundleList();
+  } catch (_) {}
+}
+
+function renderBundleList() {
+  let html = "";
+  for (const b of bundles) {
+    html += `<div class="bundle-item" onclick="document.dispatchEvent(new CustomEvent('select-bundle',{detail:'${b.bundle_id}'}))">`;
+    html += `<div class="id">${escapeHtml(b.bundle_id)}</div>`;
+    html += `<div class="meta">${b.created_at}</div>`;
+    html += `</div>`;
+  }
+  if (!html) html = `<div style="padding:var(--gap);color:var(--muted);font-size:0.85em">No bundles imported</div>`;
+  bundleList.innerHTML = html;
+}
+
+document.addEventListener("select-bundle", (e) => loadBundle(e.detail));
+
 serverInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
 connectBtn.addEventListener("click", connect);
 
 async function loadBundle(bundleId) {
   activeBundle = await fetchJson(`/v1/bundles/${encodeURIComponent(bundleId)}/timeline`);
-  tabBar.style.display = "flex";
   switchTab("timeline");
 }
 
 function switchTab(tab) {
   tabBar.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-  if (tab === "timeline") renderTimeline();
-  else renderDiff();
+  if (tab === "timeline") {
+    if (activeBundle) renderTimeline();
+    else panelBody.innerHTML = '<div class="placeholder">Select a bundle to inspect</div>';
+  } else {
+    beforeBundle ??= activeBundle;
+    renderDiff();
+  }
 }
 
 tabBar.querySelectorAll("button").forEach(b => {

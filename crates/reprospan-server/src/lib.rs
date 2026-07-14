@@ -38,6 +38,7 @@ struct ErrorBody {
 pub fn router(store: Store) -> Router {
     Router::new()
         .route("/healthz", get(health))
+        .route("/v1/bundles", get(list_bundles))
         .route("/v1/bundles/ingest", post(ingest))
         .route("/v1/bundles/{bundle_id}/timeline", get(timeline))
         .route("/v1/artifacts/{sha256}", put(put_artifact))
@@ -69,6 +70,23 @@ async fn health() -> Json<Health> {
         api_version: "v1",
         contract_version: "reprospan.bundle.v1",
     })
+}
+
+async fn list_bundles(
+    State(state): State<AppState>,
+) -> Response {
+    let result = {
+        let store = state.store.lock().unwrap();
+        store.list_bundles()
+    };
+    match result {
+        Ok(bundles) => Json(bundles).into_response(),
+        Err(store_error) => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal_error",
+            store_error.to_string(),
+        ),
+    }
 }
 
 async fn ingest(
