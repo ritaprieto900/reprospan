@@ -8,8 +8,8 @@ scope: project
 Use the real CLI and loopback HTTP surface with the project-pinned Rust toolchain:
 
 ```bash
-cargo run --manifest-path C:/Users/34964/reprospan/Cargo.toml -p reprospan-cli -- demo --db <fresh-temp-dir>/demo.sqlite
-cargo run --manifest-path C:/Users/34964/reprospan/Cargo.toml -p reprospan-cli -- serve --db <fresh-temp-dir>/server.sqlite --listen 127.0.0.1:<free-port>
+cargo run -p reprospan-cli -- demo --db <fresh-temp-dir>/demo.sqlite
+cargo run -p reprospan-cli -- serve --db <fresh-temp-dir>/server.sqlite --listen 127.0.0.1:<free-port>
 ```
 
 Drive these flows:
