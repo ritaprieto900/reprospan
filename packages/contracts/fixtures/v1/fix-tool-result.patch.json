@@ -1,0 +1,11 @@
+{
+  "schema_version": "reprospan.patch.v1",
+  "patch_id": "patch_refund_policy_001",
+  "base_bundle_id": "bundle_support_refund_001",
+  "target_event_id": "evt_003",
+  "operation": "replace_recorded_output",
+  "replacement": {
+    "result": "ok",
+    "summary": "Synthetic policy allows refund within 30 days"
+  }
+}

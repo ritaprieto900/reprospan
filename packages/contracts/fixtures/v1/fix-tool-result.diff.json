@@ -1,0 +1,25 @@
+{
+  "schema_version": "reprospan.diff.v1",
+  "base_bundle_id": "bundle_support_refund_001",
+  "changed_events": [
+    {
+      "event_id": "evt_003",
+      "kind": "tool.result",
+      "status": {
+        "before": "error",
+        "after": "ok"
+      },
+      "output": {
+        "before": {
+          "result": "error",
+          "summary": "No matching synthetic policy fixture"
+        },
+        "after": {
+          "result": "ok",
+          "summary": "Synthetic policy allows refund within 30 days"
+        }
+      }
+    }
+  ],
+  "unchanged_event_count": 3
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@reprospan/example-local-agent-capture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm --filter @reprospan/sdk build && tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test test/*.test.mjs",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@reprospan/sdk": "workspace:*"
+  }
+}

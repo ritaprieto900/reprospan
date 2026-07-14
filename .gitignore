@@ -1,0 +1,14 @@
+node_modules/
+.turbo/
+dist/
+target/
+coverage/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+.reprospan/
+.learnings/
+.DS_Store
+Thumbs.db

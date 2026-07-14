@@ -1,0 +1,21 @@
+{
+  "name": "@reprospan/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./validator": {
+      "types": "./src/validator.d.ts",
+      "import": "./src/validator.mjs"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run check",
+    "check": "node scripts/validate-contracts.mjs",
+    "test": "node --test scripts/validate-contracts.test.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
+  }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "reprospan-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+axum.workspace = true
+reprospan-core.workspace = true
+reprospan-store.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true

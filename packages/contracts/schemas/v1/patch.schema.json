@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprospan.dev/schemas/v1/patch.schema.json",
+  "title": "Reprospan Replay Patch v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "patch_id", "base_bundle_id", "target_event_id", "operation", "replacement"],
+  "properties": {
+    "schema_version": { "const": "reprospan.patch.v1" },
+    "patch_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$" },
+    "base_bundle_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$" },
+    "target_event_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$" },
+    "operation": { "const": "replace_recorded_output" },
+    "replacement": { "$ref": "event.schema.json#/$defs/recordedOutput" }
+  }
+}

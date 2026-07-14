@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprospan.dev/schemas/v1/diff.schema.json",
+  "title": "Reprospan Semantic Diff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "base_bundle_id", "changed_events", "unchanged_event_count"],
+  "properties": {
+    "schema_version": { "const": "reprospan.diff.v1" },
+    "base_bundle_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$" },
+    "changed_events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/eventDiff" }
+    },
+    "unchanged_event_count": { "type": "integer", "minimum": 0 }
+  },
+  "$defs": {
+    "eventDiff": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 3,
+      "required": ["event_id", "kind"],
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$" },
+        "kind": {
+          "enum": [
+            "run.started",
+            "run.completed",
+            "run.failed",
+            "model.request",
+            "model.response",
+            "tool.call",
+            "tool.result"
+          ]
+        },
+        "status": { "$ref": "#/$defs/statusChange" },
+        "output": { "$ref": "#/$defs/outputChange" }
+      }
+    },
+    "statusChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": { "enum": ["pending", "ok", "error"] },
+        "after": { "enum": ["pending", "ok", "error"] }
+      }
+    },
+    "outputChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": {
+          "oneOf": [
+            { "$ref": "event.schema.json#/$defs/recordedOutput" },
+            { "type": "null" }
+          ]
+        },
+        "after": {
+          "oneOf": [
+            { "$ref": "event.schema.json#/$defs/recordedOutput" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

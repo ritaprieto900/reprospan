@@ -1,0 +1,24 @@
+{
+  "schema_version": "reprospan.eval.v1",
+  "eval_id": "eval_refund_policy_001",
+  "base_bundle_id": "bundle_support_refund_001",
+  "assertions": [
+    {
+      "assertion_id": "assert_tool_result_exists",
+      "type": "event_exists",
+      "event_id": "evt_003"
+    },
+    {
+      "assertion_id": "assert_tool_result_ok",
+      "type": "event_status_equals",
+      "event_id": "evt_003",
+      "expected": "ok"
+    },
+    {
+      "assertion_id": "assert_recorded_output_ok",
+      "type": "output_result_equals",
+      "event_id": "evt_003",
+      "expected": "ok"
+    }
+  ]
+}

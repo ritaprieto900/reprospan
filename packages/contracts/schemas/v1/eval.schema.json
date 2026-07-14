@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprospan.dev/schemas/v1/eval.schema.json",
+  "title": "Reprospan Deterministic Evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "eval_id", "base_bundle_id", "assertions"],
+  "properties": {
+    "schema_version": { "const": "reprospan.eval.v1" },
+    "eval_id": { "$ref": "#/$defs/identifier" },
+    "base_bundle_id": { "$ref": "#/$defs/identifier" },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/eventExists" },
+          { "$ref": "#/$defs/eventStatusEquals" },
+          { "$ref": "#/$defs/outputResultEquals" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+    },
+    "eventExists": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "type", "event_id"],
+      "properties": {
+        "assertion_id": { "$ref": "#/$defs/identifier" },
+        "type": { "const": "event_exists" },
+        "event_id": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "eventStatusEquals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "type", "event_id", "expected"],
+      "properties": {
+        "assertion_id": { "$ref": "#/$defs/identifier" },
+        "type": { "const": "event_status_equals" },
+        "event_id": { "$ref": "#/$defs/identifier" },
+        "expected": { "enum": ["pending", "ok", "error"] }
+      }
+    },
+    "outputResultEquals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "type", "event_id", "expected"],
+      "properties": {
+        "assertion_id": { "$ref": "#/$defs/identifier" },
+        "type": { "const": "output_result_equals" },
+        "event_id": { "$ref": "#/$defs/identifier" },
+        "expected": { "enum": ["ok", "error"] }
+      }
+    }
+  }
+}

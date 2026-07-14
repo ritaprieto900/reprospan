@@ -1,0 +1,77 @@
+{
+  "schema_version": "reprospan.bundle.v1",
+  "bundle_id": "bundle_support_refund_001",
+  "created_at": "2026-07-14T00:00:00Z",
+  "capture_policy": {
+    "mode": "metadata_only",
+    "redacted": true
+  },
+  "events": [
+    {
+      "schema_version": "reprospan.event.v1",
+      "event_id": "evt_001",
+      "run_id": "run_support_refund_001",
+      "sequence": 0,
+      "occurred_at": "2026-07-14T00:00:00Z",
+      "kind": "run.started",
+      "status": "ok",
+      "name": "support-refund-agent",
+      "attributes": {
+        "scenario": "synthetic_refund_lookup"
+      }
+    },
+    {
+      "schema_version": "reprospan.event.v1",
+      "event_id": "evt_002",
+      "run_id": "run_support_refund_001",
+      "parent_event_id": "evt_001",
+      "sequence": 1,
+      "occurred_at": "2026-07-14T00:00:01Z",
+      "kind": "tool.call",
+      "status": "ok",
+      "name": "lookup_refund_policy",
+      "attributes": {
+        "input_shape": "order_tier"
+      }
+    },
+    {
+      "schema_version": "reprospan.event.v1",
+      "event_id": "evt_003",
+      "run_id": "run_support_refund_001",
+      "parent_event_id": "evt_002",
+      "sequence": 2,
+      "occurred_at": "2026-07-14T00:00:02Z",
+      "kind": "tool.result",
+      "status": "error",
+      "name": "lookup_refund_policy",
+      "attributes": {
+        "error_code": "SYNTHETIC_POLICY_MISS"
+      },
+      "output": {
+        "result": "error",
+        "summary": "No matching synthetic policy fixture"
+      }
+    },
+    {
+      "schema_version": "reprospan.event.v1",
+      "event_id": "evt_004",
+      "run_id": "run_support_refund_001",
+      "parent_event_id": "evt_001",
+      "sequence": 3,
+      "occurred_at": "2026-07-14T00:00:03Z",
+      "kind": "run.failed",
+      "status": "error",
+      "name": "support-refund-agent",
+      "attributes": {
+        "failure_reason": "tool_result_error"
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "media_type": "application/json",
+      "byte_length": 128
+    }
+  ]
+}

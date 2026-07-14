@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprospan.dev/schemas/v1/event.schema.json",
+  "title": "Reprospan Canonical Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "run_id", "sequence", "occurred_at", "kind", "status", "attributes"],
+  "properties": {
+    "schema_version": { "const": "reprospan.event.v1" },
+    "event_id": { "$ref": "#/$defs/identifier" },
+    "run_id": { "$ref": "#/$defs/identifier" },
+    "parent_event_id": { "$ref": "#/$defs/identifier" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "kind": {
+      "enum": [
+        "run.started",
+        "run.completed",
+        "run.failed",
+        "model.request",
+        "model.response",
+        "tool.call",
+        "tool.result"
+      ]
+    },
+    "status": { "enum": ["pending", "ok", "error"] },
+    "name": { "type": "string", "minLength": 1 },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "integer" },
+          { "type": "boolean" },
+          { "type": "null" }
+        ]
+      }
+    },
+    "output": { "$ref": "#/$defs/recordedOutput" },
+    "artifact_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactRef" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+    },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "media_type", "byte_length"],
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "media_type": { "type": "string", "minLength": 1 },
+        "byte_length": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recordedOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary"],
+      "properties": {
+        "result": { "enum": ["ok", "error"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "artifact_ref": { "$ref": "#/$defs/artifactRef" }
+      }
+    }
+  }
+}
